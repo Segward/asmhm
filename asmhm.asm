@@ -1,9 +1,8 @@
 section .data
   file db "navn.txt", 0
   mode db "r", 0
-  fmt db "Number of lines: %d", 10, 0
-  string db "%s", 10, 0
   hmsize equ 256
+  fmt db "%s", 10, 0
 
 section .text
   global _main
@@ -187,11 +186,129 @@ hash_key:
 ; return ptr to
 ; 0: qword array ptr
 hashmap_init:
+  push rbx
+
+  ; allocate array for hashmap
   mov rdi, 8
   xor rax, rax
   call _malloc
   mov rbx, rax
 
+  ; allocate buckets
+  mov rdi, hmsize * 8
+  xor rax, rax
+  call _malloc
+  mov [rbx], rax
+
+  ; zero buckets
+  xor rcx, rcx
+
+.zero:
+  cmp rcx, hmsize
+  je .done
+
+  ; load bucket ptr
+  mov rdx, [rbx]
+  imul rax, rcx, 8
+  add rdx, rax
+
+  ; set bucket to null
+  mov qword [rdx], 0
+  inc rcx
+  jmp .zero
+
+.done:
+  mov rax, rbx
+  pop rbx
+  ret
+
+; rdi: qword hashmap ptr
+; rsi: qword key ptr
+; no return
+hashmap_insert:
+  push r12
+  push rdi
+
+  ; compute hash
+  mov rdi, rsi
+  xor rax, rax
+  call hash_key
+  mov r12, rax
+
+  pop rdi
+
+.try:
+  ; load bucket ptr
+  mov rdx, [rdi]
+  imul rax, r12, 8
+  add rdx, rax
+
+  ; load node ptr
+  mov rbx, [rdx]
+  cmp rbx, 0
+  je .insert
+
+  ; collision
+  jmp .done
+
+.insert:
+  push rdi
+  push rdx
+
+  ; create new node
+  mov rdi, rsi
+  xor rax, rax
+  call node_init
+  mov rbx, rax
+
+  pop rdx
+  pop rdi
+
+  ; store node ptr in bucket
+  mov [rdx], rbx
+
+.done:
+  pop r12
+  ret
+
+; rdi: qword hashmap ptr
+; no return
+write_hashmap:
+  push rbx
+  xor rcx, rcx; index
+
+.loop:
+  cmp rcx, hmsize
+  je .done
+
+  ; load bucket ptr
+  mov rdx, [rdi]
+  imul rax, rcx, 8
+  add rdx, rax
+
+  ; load node ptr
+  mov rbx, [rdx]
+  cmp rbx, 0
+  je .next
+
+  push rdi
+  push rcx
+
+  ; print key
+  lea rdi, [rel fmt]
+  mov rsi, [rbx]
+  xor rax, rax
+  call _printf
+
+  pop rcx
+  pop rdi
+
+.next:
+  inc rcx
+  jmp .loop
+
+.done:
+  pop rbx
   ret
 
 _main:
@@ -207,21 +324,25 @@ _main:
   call splitlines
   mov rbx, rax
 
-  ; print number of lines
-  lea rdi, [rel fmt]
-  mov rsi, [rbx + 8]
+  ; init hashmap
   xor rax, rax
-  call _printf
+  call hashmap_init
+  mov r12, rax
 
   ; load a line
   mov rcx, [rbx]
-  add rcx, 8 * 117
+  add rcx, 8 * 116
 
-  ; print second line
-  lea rdi, [rel string]
+  ; insert line into hashmap
+  mov rdi, r12
   mov rsi, [rcx]
   xor rax, rax
-  call _printf
+  call hashmap_insert
+
+  ; write hashmap
+  mov rdi, r12
+  xor rax, rax
+  call write_hashmap
 
   mov rdi, 0
   call _exit
