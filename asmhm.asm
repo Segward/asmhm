@@ -3,6 +3,7 @@ section .data
   mode db "r", 0
   fmt db "Number of lines: %d", 10, 0
   string db "%s", 10, 0
+  hmsize equ 256
 
 section .text
   global _main
@@ -78,8 +79,8 @@ splitlines:
   call _malloc
   mov rbx, rax; struct ptr
 
-  ; allocate 4096 bytes
-  mov rdi, 4096
+  ; allocate array for line ptrs
+  mov rdi, hmsize * 8
   xor rax, rax
   call _malloc
   mov [rbx], rax
@@ -164,6 +165,23 @@ node_init:
 ; return hash value in
 ; 0: qword hash value
 hash_key:
+  xor rax, rax; hash value
+
+.loop:
+  mov bl, [rdi]
+  cmp bl, 0
+  je .done
+
+  ; update hash
+  imul rax, 31
+  add rax, rbx
+  and rax, hmsize - 1
+
+  ; next char
+  inc rdi
+  jmp .loop
+
+.done:
   ret
 
 ; return ptr to
@@ -178,12 +196,14 @@ hashmap_init:
 
 _main:
   ; read file
+  xor rax, rax
   call readfile
   mov rbx, rax
 
   ; split data
   mov rdi, [rbx]
   mov rsi, [rbx + 8]
+  xor rax, rax
   call splitlines
   mov rbx, rax
 
