@@ -103,16 +103,19 @@ hashmap_insert:
 
   pop rdi
 
+.try:
   ; check for collision
   mov rbx, [rdi + rax*8]
   cmp rbx, 0
-  jne .collision
+  je .done
 
+  inc rax
+  and rax, hmsize - 1
+  jmp .try
+
+.done:
   ; store key in hashmap
   mov [rdi + rax*8], rsi
-  ret
-
-.collision:
   ret
 
 ; arg1: hashmap array
