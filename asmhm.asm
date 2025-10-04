@@ -69,6 +69,9 @@ readfile:
 ; 0; qword array ptr
 ; 8: qword count
 splitlines:
+  push rdi
+  push rsi
+
   ; allocate 16 bytes
   mov rdi, 16
   xor rax, rax
@@ -81,8 +84,28 @@ splitlines:
   call _malloc
   mov [rbx], rax
 
+  pop rsi
+  pop rdi
+
   ; set count to 0
   mov qword [rbx + 8], 0
+  xor rcx, rcx ; index in buffer
+
+.loop:
+  cmp rcx, rsi
+  jge .done
+
+  ; check for newline
+  mov al, [rdi + rcx]
+  cmp al, 10
+  jne .next
+
+  ; increase counter
+  inc qword [rbx + 8]
+
+.next:
+  inc rcx
+  jmp .loop
 
 .done:
   mov rax, rbx
@@ -99,11 +122,16 @@ _main:
   call splitlines
   mov rbx, rax
 
+  ; print number of lines
+  lea rdi, [rel fmt]
+  mov rsi, [rbx + 8]
+  xor rax, rax
+  call _printf
+
   mov rdi, 0
   call _exit
 
 section .data
   file db "navn.txt", 0
   mode db "r", 0
-  fmt db "Read %llu bytes from file", 10, 0
-  fmt2 db "%s", 10, 0
+  fmt db "Number of lines: %d", 10, 0
