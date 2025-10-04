@@ -1,8 +1,10 @@
 section .data
   file db "navn.txt", 0
   mode db "r", 0
-  hmsize equ 256
-  fmt db "%s", 10, 0
+  hmsize equ 128
+  fmt db "%s ", 0
+  next db "-> ", 0
+  nl db "", 10, 0
 
 section .text
   global _main
@@ -21,6 +23,8 @@ extern _fopen
 extern _fread
 ; int _fclose(FILE *stream);
 extern _fclose
+; int _strcmp(const char *s1, const char *s2);
+extern _strcmp
 
 ; return ptr to 
 ; 0: qword buffer ptr
@@ -309,14 +313,58 @@ hashmap_insert:
   add rdx, rax
 
   ; load node ptr
-  mov rbx, [rdx]
+  mov rbx, [rdx]; head node
+  cmp rbx, 0
+  je .exists
+
+  xor r13, r13; prev node
+
+.node_loop:
   cmp rbx, 0
   je .insert
 
-  ; collision
-  jmp .done
+  mov r14, [rbx]
+  mov r15, rsi
+
+  push rdi
+  push rsi
+  push rdx
+
+  ; compare keys
+  mov rdi, r14
+  mov rsi, r15
+  xor rax, rax
+  call _strcmp
+
+  pop rdx
+  pop rsi
+  pop rdi
+
+  cmp rax, 0
+  je .done
+
+  mov r13, rbx
+  mov rbx, [rbx + 8]
+  jmp .node_loop
 
 .insert:
+  push rdi
+  push rdx
+
+  ; create new node
+  mov rdi, rsi
+  xor rax, rax
+  call node_init
+  mov rbx, rax
+
+  pop rdx
+  pop rdi
+
+  ; set prev node next to new node
+  mov [r13 + 8], rbx
+  jmp .done
+
+.exists:
   push rdi
   push rdx
 
@@ -363,8 +411,13 @@ write_hashmap:
 
   ; load node ptr
   mov rbx, [rdx]
+
   cmp rbx, 0
   je .next
+
+.node_loop:
+  cmp rbx, 0
+  je .newline
 
   push rdi
   push rcx
@@ -375,9 +428,29 @@ write_hashmap:
   xor rax, rax
   call _printf
 
-  ; print next node value even if null
-  lea rdi, [rel fmt]
-  mov rsi, [rbx + 8]
+  ; print arrow if next node exists
+  mov rdx, [rbx + 8]
+  cmp rdx, 0
+  je .noarrow
+
+  lea rdi, [rel next]
+  xor rax, rax
+  call _printf
+
+.noarrow:
+
+  pop rcx
+  pop rdi
+
+  mov rbx, [rbx + 8]
+  jmp .node_loop
+
+.newline:
+  push rdi
+  push rcx
+
+  ; print newline
+  lea rdi, [rel nl]
   xor rax, rax
   call _printf
 
