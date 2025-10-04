@@ -1,7 +1,7 @@
 section .bss
   buffer resb 4096
   lines resq 1024
-  hashmap resq 1024
+  hashmap resq 1024 * 2
 
 section .data
   file db "navn.txt", 0
@@ -105,6 +105,7 @@ hashmap_insert:
 
 .try:
   ; check for collision
+  add rax, rax
   mov rbx, [rdi + rax*8]
   cmp rbx, 0
   je .done
@@ -161,12 +162,14 @@ write_hashmap:
   jge .done
 
   ; load entry to rsi
-  mov rsi, [rdi + r8*8]
+  mov r9, r8
+  add r9, r9
+  mov rsi, [rdi + r9*8]
   cmp rsi, 0
   je .next
 
   ; get the hash from index
-  mov rdx, r8
+  mov rdx, r9
   imul rdx, rdx, 8
 
   push r8
