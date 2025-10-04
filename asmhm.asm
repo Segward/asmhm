@@ -470,15 +470,153 @@ write_hashmap:
 
   ret
 
+; rdi: qword node ptr
+; no return
+node_free:
+  push r15
+  push r14
+  push r13
+  push r12
+  push rbx
+
+  ; free key
+  mov rdi, rdi
+  xor rax, rax
+  call _free
+
+  pop rbx
+  pop r12
+  pop r13
+  pop r14
+  pop r15
+
+  ret
+
+hashmap_free:
+  push r15
+  push r14
+  push r13
+  push r12
+  push rbx
+
+  xor rcx, rcx; index
+
+.loop:
+  cmp rcx, hmsize
+  je .done
+
+  ; load bucket ptr
+  mov rdx, [rdi]
+  imul rax, rcx, 8
+  add rdx, rax
+
+  ; load node ptr
+  mov rbx, [rdx]
+
+  cmp rbx, 0
+  je .next
+
+  push rdi
+  push rcx
+
+  ; free node
+  mov rdi, rbx
+  xor rax, rax
+  call node_free
+
+  pop rcx
+  pop rdi
+
+.next:
+  inc rcx
+  jmp .loop
+
+.done:
+
+  ; free struct
+  mov rdi, rdi
+  xor rax, rax
+  call _free
+
+  pop rbx
+  pop r12
+  pop r13
+  pop r14
+  pop r15
+
+  ret
+
+free_lines:
+  push r15
+  push r14
+  push r13
+  push r12
+  push rbx
+
+  mov rbx, rdi
+
+  push rdi
+
+  ; free array
+  mov rdi, [rbx]
+  xor rax, rax
+  call _free
+
+  ; free struct
+  mov rdi, rbx
+  xor rax, rax
+  call _free
+
+  pop rdi
+
+  pop rbx
+  pop r12
+  pop r13
+  pop r14
+  pop r15
+
+  ret
+
+free_file:
+  push r15
+  push r14
+  push r13
+  push r12
+  push rbx
+
+  mov rbx, rdi
+
+  push rdi
+
+  ; free buffer
+  mov rdi, [rbx]
+  xor rax, rax
+  call _free
+
+  ; free struct
+  mov rdi, rbx
+  xor rax, rax
+  call _free
+
+  pop rdi
+
+  pop rbx
+  pop r12
+  pop r13
+  pop r14
+  pop r15
+
+  ret
+
 _main:
   ; read file
   xor rax, rax
   call readfile
-  mov rbx, rax
+  mov r15, rax
 
   ; split data
-  mov rdi, [rbx]
-  mov rsi, [rbx + 8]
+  mov rdi, [r15]
+  mov rsi, [r15 + 8]
   xor rax, rax
   call splitlines
   mov rbx, rax
@@ -518,6 +656,21 @@ _main:
   mov rdi, r12
   xor rax, rax
   call write_hashmap
+
+  ; free hashmap
+  mov rdi, r12
+  xor rax, rax
+  call hashmap_free
+
+  ; free lines
+  mov rdi, rbx
+  xor rax, rax
+  call free_lines
+
+  ; free file
+  mov rdi, r15
+  xor rax, rax
+  call free_file
 
   mov rdi, 0
   call _exit
