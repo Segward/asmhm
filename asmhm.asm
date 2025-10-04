@@ -1,13 +1,13 @@
 section .bss
   buffer resb 4096
   lines resq 1024
-  hashes resq 1024
+  hashmap resq 1024
 
 section .data
   file db "navn.txt", 0
   mode db "r", 0
-  nfmt db "%s", 10, 0
-  hfmt db "%llx", 10, 0
+  fmt db "%s [%llx]", 10, 0
+  hmsize equ 1024
 
 section .text
   global _main
@@ -68,48 +68,6 @@ split_lines:
 .end:
   ret
 
-; arg1: lines array
-; arg2: number of lines
-; return: void
-write_lines:
-  ; r8: line index
-  ; r9: lines array 
-  ; r10: number of lines
-  xor r8, r8
-  mov r9, rdi
-  mov r10, rsi
-  
-.loop:
-  ; reached end of lines
-  cmp r8, r10
-  jge .done
-
-  ; load line to rcx
-  mov rcx, [r9 + r8*8]
-
-  push r8
-  push r9
-  push r10
-
-  ; print structure
-  ; arg1: format
-  ; arg2: line
-  lea rdi, [rel nfmt]
-  mov rsi, rcx
-  xor rax, rax
-  call _printf
-
-  pop r10
-  pop r9
-  pop r8
-
-  ; move to next line
-  inc r8
-  jmp .loop
-
-.done:
-  ret
-
 ; arg1: string
 ; return: hash
 hash:
@@ -124,7 +82,7 @@ hash:
   ; update hash
   imul rax, rax, 31
   add rax, rbx
-  and rax, 1023
+  and rax, hmsize - 1
 
   ; move to next byte
   inc rdi
@@ -133,49 +91,97 @@ hash:
 .done:
   ret
 
-
-; arg1: lines array
-; arg2: number of lines
-; arg3: hashes array
+; arg1: hashmap array
+; arg2: key
 ; return: void
-hash_lines:
+hashmap_insert:
+  push rdi
+
+  ; compute hash
+  mov rdi, rsi
+  call hash
+
+  pop rdi
+
+  ; check for collision
+  mov rbx, [rdi + rax*8]
+  cmp rbx, 0
+  jne .collision
+
+  ; store key in hashmap
+  mov [rdi + rax*8], rsi
+  ret
+
+.collision:
+  ret
+
+; arg1: hashmap array
+; arg2: lines array
+; arg3: number of lines
+; return: void
+hashmap_insert_lines:
   ; r8: line index
   ; r9: lines array 
   ; r10: number of lines
   xor r8, r8
-  mov r9, rdi
-  mov r10, rsi
-  
+  mov r9, rsi
+  mov r10, rdx
+
 .loop:
   ; reached end of lines
   cmp r8, r10
   jge .done
 
-  ; load line to rcx
-  mov rcx, [r9 + r8*8]
+  ; load line to rsi
+  mov rsi, [r9 + r8*8]
 
-  ; compute hash
-  ; arg1: string
-  ; return: hash
-  mov rdi, rcx
-  call hash
+  ; insert line into hashmap
+  mov rdi, rdi
+  call hashmap_insert
+
+  ; move to next line
+  inc r8
+  jmp .loop
+
+.done:
+  ret
+
+; arg1: hashmap array
+; return: void
+write_hashmap:
+  ; r8: index
+  xor r8, r8
+
+.loop:
+  ; reached end of hashmap
+  cmp r8, 1024
+  jge .done
+
+  ; load entry to rsi
+  mov rsi, [rdi + r8*8]
+  cmp rsi, 0
+  je .next
+
+  ; get the hash from index
+  mov rdx, r8
+  imul rdx, rdx, 8
 
   push r8
-  push r9
-  push r10
+  push rdi
 
   ; print structure
   ; arg1: format
-  lea rdi, [rel hfmt]
-  mov rsi, rax
+  ; arg2: string
+  ; arg3: hash
+  lea rdi, [rel fmt]
   xor rax, rax
   call _printf
 
-  pop r10
-  pop r9
+  pop rdi
   pop r8
 
-  ; move to next line
+.next:
+  ; move to next entry
   inc r8
   jmp .loop
 
@@ -222,21 +228,19 @@ _main:
   ; store number of lines in r13
   mov r13, rax
 
-  ; write lines
-  ; arg1: lines array
-  ; arg2: number of lines
-  lea rdi, [rel lines]
-  mov rsi, r13
-  call write_lines
+  ; insert lines into hashmap
+  ; arg1: hashmap array
+  ; arg2: lines array
+  ; arg3: number of lines
+  lea rdi, [rel hashmap]
+  lea rsi, [rel lines]
+  mov rdx, r13
+  call hashmap_insert_lines
 
-  ; hash lines
-  ; arg1: lines array
-  ; arg2: number of lines
-  ; arg3: hashes array
-  lea rdi, [rel lines]
-  mov rsi, r13
-  lea rdx, [rel hashes]
-  call hash_lines
+  ; write hashmap
+  ; arg1: hashmap array
+  lea rdi, [rel hashmap]
+  call write_hashmap
 
   ; fclose structure
   ; arg1: FILE*
