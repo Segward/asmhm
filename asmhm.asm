@@ -24,13 +24,13 @@ section .text
 
 ; return ptr to 
 ; 0: qword buffer ptr
-; 8: qword read size
+; 8: qword size
 readfile:
   ; allocate 16 bytes
   mov rdi, 16
   xor rax, rax
   call _malloc
-  mov rbx, rax
+  mov rbx, rax; struct ptr
 
   ; allocate 4096 bytes buffer
   mov rdi, 4096
@@ -63,22 +63,41 @@ readfile:
   mov rax, rbx
   ret
 
+; rdi: qword buffer ptr
+; rsi: qword size
+; return ptr to
+; 0; qword array ptr
+; 8: qword count
+splitdata:
+  ; allocate 16 bytes
+  mov rdi, 16
+  xor rax, rax
+  call _malloc
+  mov rbx, rax; struct ptr
+
+  ; allocate 256 * 8 bytes array
+  mov rdi, 256 * 8
+  xor rax, rax
+  call _malloc
+  mov [rbx], rax
+
+  ; set count to 0
+  mov qword [rbx + 8], 0
+
+.done:
+  mov rax, rbx
+  ret
+
 _main:
   ; read file
   call readfile
   mov rbx, rax
 
-  ; print result
-  lea rdi, [rel fmt]
+  ; split data
+  mov rdi, [rbx]
   mov rsi, [rbx + 8]
-  xor rax, rax
-  call _printf
-
-  ; print buffer
-  lea rdi, [rel fmt2]
-  mov rsi, [rbx]
-  xor rax, rax
-  call _printf
+  call splitdata
+  mov rbx, rax
 
   mov rdi, 0
   call _exit
