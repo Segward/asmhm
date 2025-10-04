@@ -160,7 +160,6 @@ splitlines:
 
   ret
 
-
 ; rdi: qword key ptr
 ; return ptr to
 ; 0: qword key ptr
@@ -376,6 +375,12 @@ write_hashmap:
   xor rax, rax
   call _printf
 
+  ; print next node value even if null
+  lea rdi, [rel fmt]
+  mov rsi, [rbx + 8]
+  xor rax, rax
+  call _printf
+
   pop rcx
   pop rdi
 
@@ -410,26 +415,32 @@ _main:
   call hashmap_init
   mov r12, rax
 
+  xor rcx, rcx
+
+.loop:
+  mov rdx, [rbx + 8]
+  cmp rcx, rdx
+  jge .done
+
   ; load a line
-  mov rcx, [rbx]
-  add rcx, 8 * 116
+  mov rax, [rbx]
+  imul rdx, rcx, 8
+  add rax, rdx
+
+  push rcx
 
   ; insert line into hashmap
   mov rdi, r12
-  mov rsi, [rcx]
+  mov rsi, [rax]
   xor rax, rax
   call hashmap_insert
 
-  ; load another line
-  mov rcx, [rbx]
-  add rcx, 8 * 42
+  pop rcx
 
-  ; insert line into hashmap
-  mov rdi, r12
-  mov rsi, [rcx]
-  xor rax, rax
-  call hashmap_insert
+  inc rcx
+  jmp .loop
 
+.done:
   ; write hashmap
   mov rdi, r12
   xor rax, rax
