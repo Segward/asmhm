@@ -1,26 +1,26 @@
-; int _printf(char *fmt, ...);
-extern _printf
-
-; void _exit(int status);
-extern _exit
-
-; void *_malloc(size_t size);
-extern _malloc
-
-; void _free(void *ptr);
-extern _free
-
-; FILE *_fopen(const char *filename, const char *mode);
-extern _fopen
-
-; size_t _fread(void *ptr, size_t size, size_t count, FILE *stream);
-extern _fread
-
-; int _fclose(FILE *stream);
-extern _fclose
+section .data
+  file db "navn.txt", 0
+  mode db "r", 0
+  fmt db "Number of lines: %d", 10, 0
+  string db "%s", 10, 0
 
 section .text
   global _main
+
+; int _printf(char *fmt, ...);
+extern _printf
+; void _exit(int status);
+extern _exit
+; void *_malloc(size_t size);
+extern _malloc
+; void _free(void *ptr);
+extern _free
+; FILE *_fopen(const char *filename, const char *mode);
+extern _fopen
+; size_t _fread(void *ptr, size_t size, size_t count, FILE *stream);
+extern _fread
+; int _fclose(FILE *stream);
+extern _fclose
 
 ; return ptr to 
 ; 0: qword buffer ptr
@@ -59,7 +59,7 @@ readfile:
   xor rax, rax
   call _fclose
 
-  ; return buffer ptr and size
+  ; return struct ptr
   mov rax, rbx
   ret
 
@@ -78,8 +78,8 @@ splitlines:
   call _malloc
   mov rbx, rax; struct ptr
 
-  ; allocate 256 * 8 bytes array
-  mov rdi, 256 * 8
+  ; allocate 4096 bytes
+  mov rdi, 4096
   xor rax, rax
   call _malloc
   mov [rbx], rax
@@ -130,7 +130,50 @@ splitlines:
   jmp .loop
 
 .done:
+  ; return struct ptr
   mov rax, rbx
+  ret
+
+
+; rdi: qword key ptr
+; return ptr to
+; 0: qword key ptr
+; 8: qword next ptr
+node_init:
+  push rdi
+
+  ; allocate 16 bytes
+  mov rdi, 16
+  xor rax, rax
+  call _malloc
+  mov rbx, rax
+
+  pop rdi
+
+  ; store key ptr
+  mov [rbx], rdi
+
+  ; set next to null
+  mov qword [rbx + 8], 0
+
+  ; return node ptr
+  mov rax, rbx
+  ret
+
+; rdi: qword key ptr
+; return hash value in
+; 0: qword hash value
+hash_key:
+  ret
+
+; return ptr to
+; 0: qword array ptr
+hashmap_init:
+  mov rdi, 8
+  xor rax, rax
+  call _malloc
+  mov rbx, rax
+
   ret
 
 _main:
@@ -162,9 +205,3 @@ _main:
 
   mov rdi, 0
   call _exit
-
-section .data
-  file db "navn.txt", 0
-  mode db "r", 0
-  fmt db "Number of lines: %d", 10, 0
-  string db "%s", 10, 0
