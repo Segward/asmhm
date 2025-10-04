@@ -68,7 +68,7 @@ readfile:
 ; return ptr to
 ; 0; qword array ptr
 ; 8: qword count
-splitdata:
+splitlines:
   ; allocate 16 bytes
   mov rdi, 16
   xor rax, rax
@@ -96,7 +96,7 @@ _main:
   ; split data
   mov rdi, [rbx]
   mov rsi, [rbx + 8]
-  call splitdata
+  call splitlines
   mov rbx, rax
 
   mov rdi, 0
