@@ -89,22 +89,44 @@ splitlines:
 
   ; set count to 0
   mov qword [rbx + 8], 0
-  xor rcx, rcx ; index in buffer
+
+  xor rcx, rcx; index in buffer
 
 .loop:
-  cmp rcx, rsi
-  jge .done
+  cmp rsi, 0
+  je .done
 
   ; check for newline
   mov al, [rdi + rcx]
   cmp al, 10
   jne .next
 
-  ; increase counter
+  ; terminate line
+  mov byte [rdi + rcx], 0
+
+  ; load line ptr
+  mov rdx, [rbx]
+  mov rax, [rbx + 8]
+  imul rax, 8
+  add rdx, rax
+
+  ; store line ptr
+  lea rax, [rdi]
+  mov [rdx], rax
+
+  ; increment count
   inc qword [rbx + 8]
+
+  ; move to next char
+  add rdi, rcx
+  inc rdi
+  dec rsi
+  xor rcx, rcx
+  jmp .loop
 
 .next:
   inc rcx
+  dec rsi
   jmp .loop
 
 .done:
@@ -128,6 +150,16 @@ _main:
   xor rax, rax
   call _printf
 
+  ; load a line
+  mov rcx, [rbx]
+  add rcx, 8 * 117
+
+  ; print second line
+  lea rdi, [rel string]
+  mov rsi, [rcx]
+  xor rax, rax
+  call _printf
+
   mov rdi, 0
   call _exit
 
@@ -135,3 +167,4 @@ section .data
   file db "navn.txt", 0
   mode db "r", 0
   fmt db "Number of lines: %d", 10, 0
+  string db "%s", 10, 0
