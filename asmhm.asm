@@ -26,6 +26,12 @@ extern _fclose
 ; 0: qword buffer ptr
 ; 8: qword size
 readfile:
+  push r15
+  push r14
+  push r13
+  push r12
+  push rbx
+
   ; allocate 16 bytes
   mov rdi, 16
   xor rax, rax
@@ -61,6 +67,13 @@ readfile:
 
   ; return struct ptr
   mov rax, rbx
+
+  pop rbx
+  pop r12
+  pop r13
+  pop r14
+  pop r15
+
   ret
 
 ; rdi: qword buffer ptr
@@ -69,6 +82,12 @@ readfile:
 ; 0; qword array ptr
 ; 8: qword count
 splitlines:
+  push r15
+  push r14
+  push r13
+  push r12
+  push rbx
+
   push rdi
   push rsi
 
@@ -132,6 +151,13 @@ splitlines:
 .done:
   ; return struct ptr
   mov rax, rbx
+
+  pop rbx
+  pop r12
+  pop r13
+  pop r14
+  pop r15
+
   ret
 
 
@@ -140,6 +166,12 @@ splitlines:
 ; 0: qword key ptr
 ; 8: qword next ptr
 node_init:
+  push r15
+  push r14
+  push r13
+  push r12
+  push rbx
+
   push rdi
 
   ; allocate 16 bytes
@@ -158,12 +190,25 @@ node_init:
 
   ; return node ptr
   mov rax, rbx
+
+  pop rbx
+  pop r12
+  pop r13
+  pop r14
+  pop r15
+
   ret
 
 ; rdi: qword key ptr
 ; return hash value in
 ; 0: qword hash value
 hash_key:
+  push r15
+  push r14
+  push r13
+  push r12
+  push rbx
+
   xor rax, rax; hash value
 
 .loop:
@@ -181,11 +226,21 @@ hash_key:
   jmp .loop
 
 .done:
+  pop rbx
+  pop r12
+  pop r13
+  pop r14
+  pop r15
+
   ret
 
 ; return ptr to
 ; 0: qword array ptr
 hashmap_init:
+  push r15
+  push r14
+  push r13
+  push r12
   push rbx
 
   ; allocate array for hashmap
@@ -219,14 +274,25 @@ hashmap_init:
 
 .done:
   mov rax, rbx
+
   pop rbx
+  pop r12
+  pop r13
+  pop r14
+  pop r15
+
   ret
 
 ; rdi: qword hashmap ptr
 ; rsi: qword key ptr
 ; no return
 hashmap_insert:
+  push r15
+  push r14
+  push r13
   push r12
+  push rbx
+
   push rdi
 
   ; compute hash
@@ -268,13 +334,23 @@ hashmap_insert:
   mov [rdx], rbx
 
 .done:
+  pop rbx
   pop r12
+  pop r13
+  pop r14
+  pop r15
+
   ret
 
 ; rdi: qword hashmap ptr
 ; no return
 write_hashmap:
+  push r15
+  push r14
+  push r13
+  push r12
   push rbx
+
   xor rcx, rcx; index
 
 .loop:
@@ -309,6 +385,11 @@ write_hashmap:
 
 .done:
   pop rbx
+  pop r12
+  pop r13
+  pop r14
+  pop r15
+
   ret
 
 _main:
@@ -332,6 +413,16 @@ _main:
   ; load a line
   mov rcx, [rbx]
   add rcx, 8 * 116
+
+  ; insert line into hashmap
+  mov rdi, r12
+  mov rsi, [rcx]
+  xor rax, rax
+  call hashmap_insert
+
+  ; load another line
+  mov rcx, [rbx]
+  add rcx, 8 * 42
 
   ; insert line into hashmap
   mov rdi, r12
