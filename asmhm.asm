@@ -472,15 +472,29 @@ write_hashmap:
 
 ; rdi: qword node ptr
 ; no return
-node_free:
+free_node:
   push r15
   push r14
   push r13
   push r12
   push rbx
 
-  ; free key
-  mov rdi, rdi
+  ; free next node
+  mov rbx, [rdi + 8]
+  cmp rbx, 0
+  je .skip
+
+  push rdi
+
+  mov rdi, rbx
+  xor rax, rax
+  call free_node
+
+  pop rdi
+
+.skip:
+  ; free node
+  ; we don't free key as it's managed elsewhere
   xor rax, rax
   call _free
 
@@ -492,7 +506,9 @@ node_free:
 
   ret
 
-hashmap_free:
+; rdi: qword hashmap ptr
+; no return
+free_hashmap:
   push r15
   push r14
   push r13
@@ -519,10 +535,10 @@ hashmap_free:
   push rdi
   push rcx
 
-  ; free node
+  ; free nodes in bucket
   mov rdi, rbx
   xor rax, rax
-  call node_free
+  call free_node
 
   pop rcx
   pop rdi
@@ -532,43 +548,21 @@ hashmap_free:
   jmp .loop
 
 .done:
-
-  ; free struct
-  mov rdi, rdi
-  xor rax, rax
-  call _free
-
-  pop rbx
-  pop r12
-  pop r13
-  pop r14
-  pop r15
-
-  ret
-
-free_lines:
-  push r15
-  push r14
-  push r13
-  push r12
-  push rbx
-
-  mov rbx, rdi
+  mov rbx, [rdi]
 
   push rdi
 
-  ; free array
-  mov rdi, [rbx]
-  xor rax, rax
-  call _free
-
-  ; free struct
+  ; free buckets
   mov rdi, rbx
   xor rax, rax
   call _free
 
   pop rdi
 
+  ; free hashmap struct
+  xor rax, rax
+  call _free
+
   pop rbx
   pop r12
   pop r13
@@ -577,28 +571,61 @@ free_lines:
 
   ret
 
-free_file:
+; rdi: qword splitlines ptr
+; no return
+free_splitlines:
   push r15
   push r14
   push r13
   push r12
   push rbx
 
-  mov rbx, rdi
+  mov rbx, [rdi]
+
+  push rdi
+
+  ; free array of line ptrs
+  mov rdi, rbx
+  xor rax, rax
+  call _free
+
+  pop rdi
+
+  ; free struct
+  xor rax, rax
+  call _free
+
+  pop rbx
+  pop r12
+  pop r13
+  pop r14
+  pop r15
+
+  ret
+
+; rdi: qword struct ptr from readfile
+; no return
+free_readfile:
+  push r15
+  push r14
+  push r13
+  push r12
+  push rbx
+
+  mov rbx, [rdi]
 
   push rdi
 
   ; free buffer
-  mov rdi, [rbx]
-  xor rax, rax
-  call _free
-
-  ; free struct
   mov rdi, rbx
   xor rax, rax
   call _free
 
   pop rdi
+
+  ; free struct
+  xor rax, rax
+  call _free
 
   pop rbx
   pop r12
@@ -660,17 +687,17 @@ _main:
   ; free hashmap
   mov rdi, r12
   xor rax, rax
-  call hashmap_free
+  call free_hashmap
 
-  ; free lines
+  ; free splitlines
   mov rdi, rbx
   xor rax, rax
-  call free_lines
+  call free_splitlines
 
-  ; free file
+  ; free readfile
   mov rdi, r15
   xor rax, rax
-  call free_file
+  call free_readfile
 
   mov rdi, 0
   call _exit
