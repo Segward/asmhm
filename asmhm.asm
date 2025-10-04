@@ -1,11 +1,13 @@
 section .bss
   buffer resb 4096
   lines resq 1024
+  hashes resq 1024
 
 section .data
   file db "navn.txt", 0
   mode db "r", 0
-  fmt db "%s", 0
+  nfmt db "%s", 10, 0
+  hfmt db "%llx", 10, 0
 
 section .text
   global _main
@@ -19,7 +21,7 @@ section .text
 ; arg2: length
 ; arg3: lines array
 ; return: number of lines
-_split_lines:
+split_lines:
   ; rax: line count 
   ; r8: start of current line
   ; r9: line index
@@ -37,10 +39,16 @@ _split_lines:
   jne .next
 
   ; store line start in lines array
+  mov byte [rdi], 0
   mov [rdx + r9*8], r8
   inc rax
   inc r9
+
+  ; move to next character
+  inc rdi
+  dec rsi
   mov r8, rdi
+  jmp .loop
 
 .next:
   ; move to next character
@@ -63,25 +71,109 @@ _split_lines:
 ; arg1: lines array
 ; arg2: number of lines
 ; return: void
-_write_lines:
+write_lines:
   ; r8: line index
+  ; r9: lines array 
+  ; r10: number of lines
   xor r8, r8
+  mov r9, rdi
+  mov r10, rsi
   
 .loop:
   ; reached end of lines
-  cmp r8, rsi
+  cmp r8, r10
   jge .done
 
   ; load line to rcx
-  mov rcx, [rdi + r8*8]
+  mov rcx, [r9 + r8*8]
+
+  push r8
+  push r9
+  push r10
 
   ; print structure
   ; arg1: format
   ; arg2: line
-  lea rdi, [rel fmt]
+  lea rdi, [rel nfmt]
   mov rsi, rcx
   xor rax, rax
   call _printf
+
+  pop r10
+  pop r9
+  pop r8
+
+  ; move to next line
+  inc r8
+  jmp .loop
+
+.done:
+  ret
+
+; arg1: string
+; return: hash
+hash:
+  xor rax, rax
+
+.loop:
+  ; load byte
+  mov bl, [rdi]
+  cmp bl, 0
+  je .done
+
+  ; update hash
+  imul rax, rax, 31
+  add rax, rbx
+  and rax, 1023
+
+  ; move to next byte
+  inc rdi
+  jmp .loop
+
+.done:
+  ret
+
+
+; arg1: lines array
+; arg2: number of lines
+; arg3: hashes array
+; return: void
+hash_lines:
+  ; r8: line index
+  ; r9: lines array 
+  ; r10: number of lines
+  xor r8, r8
+  mov r9, rdi
+  mov r10, rsi
+  
+.loop:
+  ; reached end of lines
+  cmp r8, r10
+  jge .done
+
+  ; load line to rcx
+  mov rcx, [r9 + r8*8]
+
+  ; compute hash
+  ; arg1: string
+  ; return: hash
+  mov rdi, rcx
+  call hash
+
+  push r8
+  push r9
+  push r10
+
+  ; print structure
+  ; arg1: format
+  lea rdi, [rel hfmt]
+  mov rsi, rax
+  xor rax, rax
+  call _printf
+
+  pop r10
+  pop r9
+  pop r8
 
   ; move to next line
   inc r8
@@ -125,7 +217,7 @@ _main:
   lea rdi, [rel buffer]
   mov rsi, r13
   lea rdx, [rel lines]
-  call _split_lines
+  call split_lines
 
   ; store number of lines in r13
   mov r13, rax
@@ -135,7 +227,16 @@ _main:
   ; arg2: number of lines
   lea rdi, [rel lines]
   mov rsi, r13
-  call _write_lines
+  call write_lines
+
+  ; hash lines
+  ; arg1: lines array
+  ; arg2: number of lines
+  ; arg3: hashes array
+  lea rdi, [rel lines]
+  mov rsi, r13
+  lea rdx, [rel hashes]
+  call hash_lines
 
   ; fclose structure
   ; arg1: FILE*
