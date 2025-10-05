@@ -102,7 +102,7 @@ splitlines:
   mov rbx, rax; struct ptr
 
   ; allocate array for line ptrs
-  mov rdi, hmsize * 8
+  mov rdi, 4096
   xor rax, rax
   call _malloc
   mov [rbx], rax
@@ -222,7 +222,6 @@ hash_key:
   ; update hash
   imul rax, 31
   add rax, rbx
-  and rax, hmsize - 1
 
   ; next char
   inc rdi
@@ -235,6 +234,7 @@ hash_key:
   pop r14
   pop r15
 
+  and rax, hmsize - 1
   ret
 
 ; return ptr to
